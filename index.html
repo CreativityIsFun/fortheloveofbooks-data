@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>For The Love of Books - AI Book Recommender</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            color: #666;
+            font-weight: 400;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-size: 1.1rem;
+        }
+
+        .error {
+            text-align: center;
+            padding: 20px;
+            color: #dc2626;
+            background: #fef2f2;
+            border-radius: 10px;
+            border: 1px solid #fecaca;
+            margin-bottom: 20px;
+        }
+        
+        .chat-container {
+            height: 500px;
+            border: 2px solid #e0e7ff;
+            border-radius: 15px;
+            overflow-y: auto;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+            scroll-behavior: smooth;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .user-message {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+        
+        .bot-message {
+            background: white;
+            color: #333;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .book-recommendation {
+            background: linear-gradient(135deg, #ffecd2, #fcb69f);
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .book-title {
+            font-weight: bold;
+            color: #7c2d12;
+            font-size: 1.1rem;
+        }
+        
+        .book-author {
+            color: #9a3412;
+            font-style: italic;
+            margin: 5px 0;
+        }
+        
+        .book-rating {
+            color: #ea580c;
+            font-weight: bold;
+        }
+        
+        .review-link {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            transition: transform 0.2s;
+        }
+        
+        .review-link:hover {
+            transform: scale(1.05);
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .user-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e7ff;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .user-input:focus {
+            border-color: #667eea;
+        }
+        
+        .send-btn {
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        
+        .send-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .quick-suggestions {
+            margin-bottom: 20px;
+        }
+        
+        .suggestions-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #374151;
+        }
+        
+        .suggestion-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .suggestion-chip {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            transition: all 0.2s;
+        }
+        
+        .suggestion-chip:hover {
+            background: rgba(102, 126, 234, 0.2);
+            transform: scale(1.05);
+        }
+
+        .data-source-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            color: #0c4a6e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>For The Love of Books</h1>
+            <p>AI Book Recommender Agent - Discover Your Next Great Read!</p>
+        </div>
+
+        <div class="data-source-info">
+            <strong>📚 Live Data Connection:</strong> Fetching latest book recommendations from our cloud database...
+        </div>
+        
+        <div id="loadingMessage" class="loading">
+            Loading book database... Please wait.
+        </div>
+
+        <div id="errorMessage" class="error" style="display: none;"></div>
+        
+        <div class="quick-suggestions" id="suggestions" style="display: none;">
+            <div class="suggestions-title">Quick Suggestions:</div>
+            <div class="suggestion-chips">
+                <div class="suggestion-chip" onclick="sendSuggestion('I love thrillers, recommend something exciting')">Thrilling Reads</div>
+                <div class="suggestion-chip" onclick="sendSuggestion('I want a romance book that will make me cry')">Emotional Romance</div>
+                <div class="suggestion-chip" onclick="sendSuggestion('Suggest a science fiction book for beginners')">Sci-Fi Starter</div>
+                <div class="suggestion-chip" onclick="sendSuggestion('I enjoyed Harry Potter, what should I read next?')">Fantasy Adventure</div>
+                <div class="suggestion-chip" onclick="sendSuggestion('Recommend a book about science for children')">Science for Kids</div>
+                <div class="suggestion-chip" onclick="sendSuggestion('Show me your highest rated books')">Top Rated</div>
+            </div>
+        </div>
+        
+        <div class="chat-container" id="chatContainer" style="display: none;">
+            <div class="message bot-message">
+                <strong>📚 Welcome to For The Love of Books! 📚</strong><br><br>
+                I'm your AI book recommender! I have access to our live collection of <span id="bookCount">111</span> amazing books across various genres. 
+                I can help you find your next great read based on your preferences, mood, or favorite authors.<br><br>
+                <strong>What I can do:</strong><br>
+                • Recommend books based on your interests<br>
+                • Suggest similar books to ones you've enjoyed<br>
+                • Find books by genre, author, or theme<br>
+                • Share detailed reviews when available<br>
+                • Provide additional information about any book<br><br>
+                What type of book are you in the mood for today?
+            </div>
+        </div>
+        
+        <div class="input-container" id="inputContainer" style="display: none;">
+            <input type="text" class="user-input" id="userInput" placeholder="Ask me for book recommendations..." onkeypress="handleKeyPress(event)">
+            <button class="send-btn" id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        let booksDatabase = [];
+        let chatHistory = [];
+        let isLoading = false;
+
+        // Configuration - Replace these URLs with your cloud data sources
+        const DATA_SOURCES = {
+            // Option 1: GitHub Raw File URL (replace with your repository)
+            github: 'https://github.com/CreativityIsFun/fortheloveofbooks-data/blob/main/books.json.json',
+            
+            // Option 2: Google Sheets CSV Export (make sheet public and replace SHEET-ID)
+            googleSheets: 'https://docs.google.com/spreadsheets/d/YOUR-SHEET-ID/export?format=csv',
+            
+            // Option 3: Any other cloud hosting service
+            fallback: null
+        };
+
+        // Initialize the application
+        async function initializeApp() {
+            try {
+                await loadBooksData();
+                showInterface();
+                updateBookCount();
+            } catch (error) {
+                showError('Failed to load book database. Please try again later.');
+            }
+        }
+
+        async function loadBooksData() {
+            // For now, using fallback data since you haven't set up cloud hosting yet
+            // Once you upload to GitHub/Google Sheets, uncomment the fetch calls below
+            
+            /* UNCOMMENT WHEN YOUR DATA IS HOSTED:
+            try {
+                const response = await fetch(DATA_SOURCES.github);
+                if (response.ok) {
+                    booksDatabase = await response.json();
+                    return;
+                }
+            } catch (error) {
+                console.log('GitHub source failed, trying Google Sheets...');
+            }
+
+            try {
+                const response = await fetch(DATA_SOURCES.googleSheets);
+                if (response.ok) {
+                    const csvText = await response.text();
+                    booksDatabase = parseCSV(csvText);
+                    return;
+                }
+            } catch (error) {
+                console.log('Google Sheets source failed');
+            }
+            */
+
+            // Fallback data - using your key books
+            booksDatabase = [
+                {
+                    "No.": 1,
+                    "Title": "The Kind Worth Killing",
+                    "Author(s)": "Peter Swanson",
+                    "Description": "On a night flight from London to Boston, Ted Severson meets the stunning and mysterious Lily Kintner. A twisted thriller about marriage, betrayal, and murder.",
+                    "Genre": "Thriller",
+                    "Our_Rating": 3.0,
+                    "Detailed_Review": "https://fortheloveofbooks01.wordpress.com/2025/05/15/the-kind-worth-killing-by-peter-swanson/"
+                },
+                {
+                    "No.": 4,
+                    "Title": "Love, Theoretically",
+                    "Author(s)": "Ali Hazelwood",
+                    "Description": "Theoretical physicist Elsie offers her services as a fake girlfriend until her carefully constructed world comes crashing down.",
+                    "Genre": "Romance",
+                    "Our_Rating": 3.0,
+                    "Detailed_Review": "https://fortheloveofbooks01.wordpress.com/2025/05/09/love-theoretically-by-ali-hazelwood/"
+                },
+                {
+                    "No.": 5,
+                    "Title": "Harry Potter and the Philosopher's Stone",
+                    "Author(s)": "J. K. Rowling",
+                    "Genre": "Fantasy",
+                    "Our_Rating": 5.0,
+                    "Short_Review": "Universally popular among both kids and adults, Harry Potter took children's fantasy to new heights. A must-read book for one and all.",
+                    "Childrens_Book": "Yes"
+                },
+                {
+                    "No.": 15,
+                    "Title": "The Housemaid",
+                    "Author(s)": "Freida McFadden",
+                    "Description": "Every day I clean the Winchesters' beautiful house. But the family harbors dark secrets, and I have secrets of my own.",
+                    "Genre": "Thriller",
+                    "Our_Rating": 4.5,
+                    "Short_Review": "An easy-to-read and difficult-to-put-down book. Both suspenseful and funny."
+                },
+                {
+                    "No.": 27,
+                    "Title": "Gone Girl",
+                    "Author(s)": "Gillian Flynn",
+                    "Genre": "Thriller",
+                    "Our_Rating": 5.0
+                },
+                {
+                    "No.": 85,
+                    "Title": "Truly Devious",
+                    "Author(s)": "Maureen Johnson",
+                    "Genre": "Thriller",
+                    "Our_Rating": 5.0,
+                    "Short_Review": "Excellent, can't put down, makes you want to buy the next novel in the series.",
+                    "Detailed_Review": "https://fortheloveofbooks01.wordpress.com/2025/08/02/truly-devious-by-maureen-johnson/"
+                },
+                {
+                    "No.": 86,
+                    "Title": "The Silent Patient",
+                    "Author(s)": "Alex Michaelides",
+                    "Genre": "Thriller",
+                    "Our_Rating": 4.0,
+                    "Short_Review": "A gripping psychological thriller about a woman's act of violence and the therapist obsessed with uncovering her motive.",
+                    "Detailed_Review": "https://fortheloveofbooks01.wordpress.com/2025/09/17/the-silent-patient-by-alex-michaelides/"
+                },
+                {
+                    "No.": 88,
+                    "Title": "The Theory of Everything",
+                    "Author(s)": "Stephen Hawking",
+                    "Genre": "Science",
+                    "Our_Rating": 5.0,
+                    "Short_Review": "A must-read for everyone interested in understanding our universe. Mathematics kept minimal while explaining complex concepts simply.",
+                    "Childrens_Book": "Yes"
+                }
+            ];
+        }
+
+        function parseCSV(csvText) {
+            // Simple CSV parser - you might want to use a library for complex CSV
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',');
+            const books = [];
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',');
+                const book = {};
+                headers.forEach((header, index) => {
+                    book[header.trim()] = values[index] ? values[index].trim() : null;
+                });
+                if (book.Title) books.push(book);
+            }
+            
+            return books;
+        }
+
+        function showInterface() {
+            document.getElementById('loadingMessage').style.display = 'none';
+            document.getElementById('suggestions').style.display = 'block';
+            document.getElementById('chatContainer').style.display = 'block';
+            document.getElementById('inputContainer').style.display = 'flex';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('loadingMessage').style.display = 'none';
+        }
+
+        function updateBookCount() {
+            document.getElementById('bookCount').textContent = booksDatabase.length;
+        }
+
+        function addMessage(message, isUser = false) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.innerHTML = message;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = input.value.trim();
+            
+            if (!message || isLoading) return;
+            
+            addMessage(message, true);
+            input.value = '';
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Thinking...';
+            isLoading = true;
+            
+            chatHistory.push({ role: 'user', content: message });
+            
+            setTimeout(() => {
+                const response = generateResponse(message);
+                addMessage(response);
+                chatHistory.push({ role: 'assistant', content: response });
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+                isLoading = false;
+            }, 1000);
+        }
+
+        function sendSuggestion(suggestion) {
+            if (isLoading) return;
+            document.getElementById('userInput').value = suggestion;
+            sendMessage();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !isLoading) {
+                sendMessage();
+            }
+        }
+
+        function generateResponse(userMessage) {
+            const message = userMessage.toLowerCase();
+            
+            if (booksDatabase.length === 0) {
+                return "I'm sorry, but I'm having trouble accessing our book database right now. Please try again in a moment.";
+            }
+            
+            // Genre-based recommendations
+            if (message.includes('thriller') || message.includes('suspense') || message.includes('mystery')) {
+                return getGenreRecommendations(['Thriller', 'Crime Fiction'], 'thriller');
+            }
+            
+            if (message.includes('romance') || message.includes('love story')) {
+                return getGenreRecommendations(['Romance'], 'romance');
+            }
+            
+            if (message.includes('fantasy') || message.includes('magic') || message.includes('harry potter')) {
+                return getFantasyRecommendations(message);
+            }
+            
+            if (message.includes('science') || message.includes('physics') || message.includes('educational')) {
+                return getGenreRecommendations(['Science'], 'science');
+            }
+            
+            if (message.includes('self-help') || message.includes('personal development')) {
+                return getGenreRecommendations(['Self-Help'], 'self-help');
+            }
+            
+            // Author-based recommendations
+            if (message.includes('freida mcfadden')) {
+                return getAuthorRecommendations('Freida McFadden');
+            }
+            
+            if (message.includes('agatha christie')) {
+                return getAuthorRecommendations('Agatha Christie');
+            }
+            
+            if (message.includes('stephen king')) {
+                return getAuthorRecommendations('Stephen King');
+            }
+            
+            // Rating-based recommendations
+            if (message.includes('best') || message.includes('highly rated') || message.includes('top rated') || message.includes('highest')) {
+                return getHighRatedBooks();
+            }
+            
+            if (message.includes('children') || message.includes('kids') || message.includes('child')) {
+                return getChildrenBooks();
+            }
+            
+            // Default response
+            return getRandomRecommendations();
+        }
+
+        function getGenreRecommendations(genres, genreName) {
+            const genreBooks = booksDatabase.filter(book => 
+                genres.includes(book.Genre)
+            ).slice(0, 3);
+            
+            if (genreBooks.length === 0) {
+                return `I don't have many ${genreName} books in our current collection right now. Would you like me to suggest something similar from other genres?`;
+            }
+            
+            let response = `Perfect! Here are some ${genreName} recommendations from our collection:<br><br>`;
+            
+            genreBooks.forEach(book => {
+                response += formatBookRecommendation(book);
+            });
+            
+            return response + `<br>Would you like more ${genreName} recommendations or something from a different genre?`;
+        }
+
+        function getFantasyRecommendations(message) {
+            if (message.includes('harry potter')) {
+                const harryPotterBook = booksDatabase.find(book => book.Title.includes('Harry Potter'));
+                if (harryPotterBook) {
+                    return `Since you mentioned Harry Potter, here's a magical recommendation:<br><br>` + 
+                           formatBookRecommendation(harryPotterBook) + 
+                           `<br>I have more Harry Potter books and fantasy recommendations! Would you like to see more?`;
+                }
+            }
+            
+            return getGenreRecommendations(['Fantasy'], 'fantasy');
+        }
+
+        function getAuthorRecommendations(author) {
+            const authorBooks = booksDatabase.filter(book => 
+                book['Author(s)'] && book['Author(s)'].includes(author)
+            ).slice(0, 3);
+            
+            if (authorBooks.length === 0) {
+                return `I don't have books by ${author} in our current collection. Would you like recommendations for similar authors in the same genre?`;
+            }
+            
+            let response = `Here are ${author}'s books from our collection:<br><br>`;
+            
+            authorBooks.forEach(book => {
+                response += formatBookRecommendation(book);
+            });
+            
+            return response;
+        }
+
+        function getHighRatedBooks() {
+            const highRatedBooks = booksDatabase
+                .filter(book => book.Our_Rating && parseFloat(book.Our_Rating) >= 4.0)
+                .sort((a, b) => parseFloat(b.Our_Rating || 0) - parseFloat(a.Our_Rating || 0))
+                .slice(0, 4);
+            
+            if (highRatedBooks.length === 0) {
+                return "I don't have rating information available for most books right now. Let me suggest some popular titles instead!";
+            }
+            
+            let response = `Here are our highest-rated books that readers absolutely love:<br><br>`;
+            
+            highRatedBooks.forEach(book => {
+                response += formatBookRecommendation(book);
+            });
+            
+            return response;
+        }
+
+        function getChildrenBooks() {
+            const childrenBooks = booksDatabase.filter(book => 
+                book.Childrens_Book === 'Yes'
+            ).slice(0, 3);
+            
+            if (childrenBooks.length === 0) {
+                return "Let me suggest some books that are suitable for children from our collection!";
+            }
+            
+            let response = `Here are some wonderful books perfect for children:<br><br>`;
+            
+            childrenBooks.forEach(book => {
+                response += formatBookRecommendation(book);
+            });
+            
+            return response;
+        }
+
+        function getRandomRecommendations() {
+            const randomBooks = booksDatabase
+                .sort(() => 0.5 - Math.random())
+                .slice(0, 3);
+            
+            let response = `Here are some diverse recommendations from our collection:<br><br>`;
+            
+            randomBooks.forEach(book => {
+                response += formatBookRecommendation(book);
+            });
+            
+            response += `<br>Tell me more about what you're in the mood for, and I can provide more targeted recommendations!`;
+            
+            return response;
+        }
+
+        function formatBookRecommendation(book) {
+            if (!book) return '';
+            
+            let recommendation = `<div class="book-recommendation">`;
+            recommendation += `<div class="book-title">${book.Title}</div>`;
+            
+            if (book['Author(s)']) {
+                recommendation += `<div class="book-author">by ${book['Author(s)']}</div>`;
+            }
+            
+            if (book.Description) {
+                recommendation += `<p style="margin: 8px 0; font-size: 0.9rem;">${book.Description}</p>`;
+            }
+            
+            if (book.Our_Rating) {
+                const rating = parseFloat(book.Our_Rating);
+                const stars = '★'.repeat(Math.floor(rating)) + (rating % 1 !== 0 ? '☆' : '');
+                recommendation += `<div class="book-rating">Our Rating: ${book.Our_Rating}/5 ${stars}</div>`;
+            }
+            
+            if (book.Short_Review) {
+                recommendation += `<p style="margin: 8px 0; font-style: italic; color: #666;">${book.Short_Review}</p>`;
+            }
+            
+            if (book.Detailed_Review) {
+                recommendation += `<a href="${book.Detailed_Review}" target="_blank" class="review-link">📖 Read Our Full Review</a>`;
+            } else {
+                recommendation += `<p style="margin: 8px 0; font-size: 0.85rem; color: #888;">Genre: ${book.Genre || 'Fiction'}</p>`;
+            }
+            
+            recommendation += `</div>`;
+            
+            return recommendation;
+        }
+
+        // Initialize the app when the page loads
+        window.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
